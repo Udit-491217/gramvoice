@@ -25,4 +25,22 @@
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
 
-* { -webkit-font-smoothing: antialiased; }
+* {
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-weight: 700;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800 !important;
+}
+
+button {
+  font-weight: 600 !important;
+}
+
+input, textarea, select {
+  font-weight: 500 !important;
+}

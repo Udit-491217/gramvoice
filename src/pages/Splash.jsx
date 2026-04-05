@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import logo from '../assets/logo.png'
 
 export default function Splash() {
   const [phase, setPhase] = useState(0)
@@ -16,9 +17,9 @@ export default function Splash() {
 
       {/* Logo */}
       <div className={`transition-all duration-700 ${phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
-        <div className="w-24 h-24 rounded-3xl flex items-center justify-center mb-6 shadow-xl"
+        <div className="w-24 h-24 rounded-3xl flex items-center justify-center mb-6 shadow-xl overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #1a7f3c, #2db856)' }}>
-          <span className="text-5xl">🌾</span>
+          <img src={logo} alt="GramVoice" className="w-full h-full object-contain p-2" />
         </div>
       </div>
 
