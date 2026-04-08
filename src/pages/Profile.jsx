@@ -78,35 +78,204 @@ export default function Profile({ profile, village, onLogout, onBack, onProfileU
     setAvatarUploading(false)
   }
 
-  // ── UPI payment ──────────────────────────────────────────
-  const handlePayNow = (p) => { setSelectedPlan(p); setPayStep('upi') }
+  // ── UPI Config ───────────────────────────────────────────
+const UPI_ID   = 'notjustudit@fam'
+const UPI_NAME = 'Udit Kr Tanti'  // Name shown in UPI app
 
-  const handleOpenUPI = () => {
-    const note = `GramVoice ${selectedPlan?.name} - ${profile?.phone || profile?.id?.slice(0,8)}`
-    openUPI(selectedPlan?.upiAmount, note)
-    setTimeout(() => setPayStep('screenshot'), 2000)
-  }
+// ── Open UPI App ─────────────────────────────────────────
+const openUPIApp = (amount, note) => {
+  // This deep link opens ANY UPI app — GPay, PhonePe, Paytm etc.
+  const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`
+  window.location.href = upiUrl
 
-  const handleScreenshot = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setUploading(true)
-    const filePath = `${profile.id}-${Date.now()}.${file.name.split('.').pop()}`
-    const { error: upErr } = await supabase.storage
-      .from('payment-proofs').upload(filePath, file, { upsert: true })
-    if (upErr) { alert('Upload failed. Try again.'); setUploading(false); return }
-    const { data: urlData } = supabase.storage.from('payment-proofs').getPublicUrl(filePath)
-    await supabase.from('payment_requests').insert({
-      user_id:        profile.id,
-      village_id:     profile.village_id,
-      plan:           selectedPlan?.id,
-      amount:         selectedPlan?.upiAmount,
-      screenshot_url: urlData.publicUrl,
-      status:         'pending'
-    })
+  // After 3 seconds (user has gone to UPI app), show screenshot step on return
+  setTimeout(() => setPayStep('screenshot'), 3000)
+}
+
+// ── Pay Now clicked ──────────────────────────────────────
+const handlePayNow = (plan) => {
+  setSelectedPlan(plan)
+  setPayStep('upi')
+}
+
+// ── Open UPI button clicked ──────────────────────────────
+const handleOpenUPI = () => {
+  const note = `GramVoice ${selectedPlan?.name} - ${profile?.phone || profile?.id?.slice(0, 8)}`
+  openUPIApp(selectedPlan?.upiAmount, note)
+}
+
+// ── Screenshot upload ────────────────────────────────────
+const handleScreenshot = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  setUploading(true)
+
+  const filePath = `${profile.id}-${Date.now()}.${file.name.split('.').pop()}`
+
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(filePath, file, { upsert: true })
+
+  if (upErr) {
+    alert('Upload failed. Try again.')
     setUploading(false)
-    setPayStep('done')
+    return
   }
+
+  const { data: urlData } = supabase.storage
+    .from('payment-proofs')
+    .getPublicUrl(filePath)
+
+  await supabase.from('payment_requests').insert({
+    user_id:        profile.id,
+    village_id:     profile.village_id,
+    plan:           selectedPlan?.id,
+    amount:         selectedPlan?.upiAmount,
+    screenshot_url: urlData.publicUrl,
+    status:         'pending'
+  })
+
+  setUploading(false)
+  setPayStep('done')
+}
+
+// ── UPI Screen JSX ───────────────────────────────────────
+// payStep === 'upi'
+const UPIScreen = () => (
+  <div className="text-center">
+    <button onClick={() => setPayStep('choose')}
+      className="flex items-center gap-1 text-xs mb-4 font-semibold"
+      style={{ color: '#6b8f72' }}>
+      ← Back
+    </button>
+
+    {/* Amount display */}
+    <div className="text-6xl font-extrabold mb-1" style={{ color: '#1a7f3c' }}>
+      {selectedPlan?.price}
+    </div>
+    <div className="text-sm mb-1" style={{ color: '#6b8f72' }}>
+      {selectedPlan?.name}
+    </div>
+
+    {/* UPI Details Card */}
+    <div className="rounded-2xl p-4 mb-6 text-left mt-5"
+      style={{ background: '#f0f5f1', border: '1.5px solid #ddeae0' }}>
+
+      <div className="flex items-center gap-3 mb-3 pb-3"
+        style={{ borderBottom: '1px solid #ddeae0' }}>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+          style={{ background: '#e6f5eb' }}>
+          💳
+        </div>
+        <div>
+          <div className="font-extrabold text-base" style={{ color: '#192b1d' }}>
+            {UPI_NAME}
+          </div>
+          <div className="text-sm font-medium" style={{ color: '#1a7f3c' }}>
+            {UPI_ID}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: '#6b8f72' }}>Amount</span>
+        <span className="font-extrabold text-lg" style={{ color: '#1a7f3c' }}>
+          {selectedPlan?.price}
+        </span>
+      </div>
+    </div>
+
+    {/* Open UPI App Button */}
+    <button onClick={handleOpenUPI}
+      className="w-full py-4 rounded-2xl font-extrabold text-white text-base mb-3 flex items-center justify-center gap-2"
+      style={{ background: 'linear-gradient(135deg,#1a7f3c,#2db856)', boxShadow: '0 8px 24px rgba(26,127,60,0.25)' }}>
+      📱 Pay with UPI →
+    </button>
+
+    <div className="text-xs mb-4" style={{ color: '#9dc9a8' }}>
+      Opens GPay · PhonePe · Paytm · Any UPI app
+    </div>
+
+    {/* Already paid link */}
+    <button onClick={() => setPayStep('screenshot')}
+      className="w-full py-3 rounded-2xl font-semibold text-sm border-2"
+      style={{ borderColor: '#ddeae0', color: '#6b8f72' }}>
+      Already paid? Upload screenshot →
+    </button>
+  </div>
+)
+
+// ── Screenshot Screen JSX ────────────────────────────────
+// payStep === 'screenshot'
+const ScreenshotScreen = () => (
+  <div className="text-center">
+    <div className="text-4xl mb-3">📸</div>
+    <div className="text-xl font-extrabold mb-2" style={{ color: '#192b1d' }}>
+      Upload Payment Screenshot
+    </div>
+    <div className="text-sm mb-2" style={{ color: '#6b8f72' }}>
+      Take a screenshot of your payment confirmation and upload it here.
+    </div>
+    <div className="rounded-2xl p-3 mb-6 text-sm font-semibold"
+      style={{ background: '#e8f5ec', color: '#1a7f3c' }}>
+      ✓ We'll verify and activate your plan within 24 hours
+    </div>
+
+    {/* Screenshot preview */}
+    {screenshotPreview && (
+      <div className="mb-4 rounded-2xl overflow-hidden border-2"
+        style={{ borderColor: '#1a7f3c' }}>
+        <img src={screenshotPreview} alt="Payment proof"
+          className="w-full object-cover max-h-48" />
+      </div>
+    )}
+
+    <input ref={screenshotRef} type="file" accept="image/*"
+      className="hidden" onChange={handleScreenshot} />
+
+    <button onClick={() => screenshotRef.current.click()} disabled={uploading}
+      className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 mb-3 disabled:opacity-50"
+      style={{ background: 'linear-gradient(135deg,#1a7f3c,#2db856)' }}>
+      {uploading
+        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Uploading...</>
+        : <><Upload size={18} /> Upload Screenshot</>
+      }
+    </button>
+
+    <div className="text-xs" style={{ color: '#9dc9a8' }}>
+      📱 {profile?.phone} · Paid: {selectedPlan?.price}
+    </div>
+  </div>
+)
+
+// ── Done Screen JSX ──────────────────────────────────────
+// payStep === 'done'
+const DoneScreen = () => (
+  <div className="text-center py-4">
+    <div className="text-6xl mb-4">🎉</div>
+    <div className="text-xl font-extrabold mb-2" style={{ color: '#192b1d' }}>
+      Payment Submitted!
+    </div>
+    <div className="rounded-2xl p-4 mb-6"
+      style={{ background: '#e8f5ec', border: '1.5px solid #b8e8c8' }}>
+      <div className="text-sm font-semibold mb-1" style={{ color: '#1a7f3c' }}>
+        What happens next?
+      </div>
+      <div className="text-xs" style={{ color: '#3d5e44', lineHeight: '1.8' }}>
+        ✓ Screenshot received<br />
+        ✓ We'll verify within 24 hours<br />
+        ✓ Plan activated automatically<br />
+        ✓ You'll see "Paid ⚡" badge on profile
+      </div>
+    </div>
+    <button onClick={closePayment}
+      className="w-full py-4 rounded-2xl font-bold text-white"
+      style={{ background: 'linear-gradient(135deg,#1a7f3c,#2db856)' }}>
+      Got it! ✓
+    </button>
+  </div>
+)
 
   const closePayment = () => { setShowPayment(false); setPayStep('choose'); setSelectedPlan(null) }
 
